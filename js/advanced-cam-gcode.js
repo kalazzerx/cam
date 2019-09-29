@@ -13,8 +13,17 @@ function trashGcode() {
   $('#trashicon').removeClass('fg-red').addClass('fg-gray');
 }
 
-
 function makeGcode() {
+  if (toolpathWorkersBusy()) {
+    // console.log('not yet... rescheduling')
+    setTimeout(function(){makeGcode()}, 500);
+  } else {
+    makeGcodeExec()
+  }
+}
+
+
+function makeGcodeExec() {
 
   if (toolpathsInScene.length > 0) {
 
@@ -37,14 +46,39 @@ function makeGcode() {
           var toolon = "";
           var tooloff = "";
           // toolpath settings is applied to the parent Toolpath.  Each child in the "toolpath" is processed with the same settings
-          var Feedrate = toolpathsInScene[j].userData.camFeedrate
-          var Plungerate = toolpathsInScene[j].userData.camPlungerate
-          var LaserPower = toolpathsInScene[j].userData.camLaserPower
-          var ZClearance = toolpathsInScene[j].userData.camZClearance
-          var PlasmaIHS = toolpathsInScene[j].userData.camPlasmaIHS
+          var Feedrate = toolpathsInScene[j].userData.camFeedrate;
+          var Plungerate = toolpathsInScene[j].userData.camPlungerate;
+          var LaserPower = toolpathsInScene[j].userData.camLaserPower;
+          var ZClearance = toolpathsInScene[j].userData.camZClearance;
+          var PlasmaIHS = toolpathsInScene[j].userData.camPlasmaIHS;
           var rampplunge = toolpathsInScene[j].userData.tRampPlunge == "Yes" ? true : false;
+          var Passes = toolpathsInScene[j].userData.camPasses;
 
-          toolpathsInScene[j].userData.gcode = generateGcode(j, toolpathsInScene[j].userData.inflated, Feedrate, Plungerate, LaserPower, rapidSpeed, toolon, tooloff, ZClearance, false, PlasmaIHS, rampplunge);
+          if (toolpathsInScene[j].userData.camOperation.indexOf('Pen') == 0) {
+            toolon = "M3S" + toolpathsInScene[j].userData.camPenDown + "\nG4 P0.5";
+            tooloff = "M3S" + toolpathsInScene[j].userData.camPenUp + "\nG4 P0.5";
+            ZClearance = 0;
+          }
+
+          if (toolpathsInScene[j].userData.camOperation.indexOf('Plasma') == 0) {
+            toolon = "M3S1000";
+            tooloff = "M5";
+          }
+
+          if (parseInt(Passes) && toolpathsInScene[j].userData.camOperation.indexOf('Laser') == 0) {
+            var g = ""
+            var gcode = generateGcode(j, toolpathsInScene[j].userData.inflated, Feedrate, Plungerate, LaserPower, rapidSpeed, toolon, tooloff, ZClearance, false, PlasmaIHS, rampplunge);
+            for (k = 0; k < Passes; k++) {
+              g += '; Pass ' + k + "\n"
+              g += gcode
+            }
+            toolpathsInScene[j].userData.gcode = g;
+          } else {
+            toolpathsInScene[j].userData.gcode = generateGcode(j, toolpathsInScene[j].userData.inflated, Feedrate, Plungerate, LaserPower, rapidSpeed, toolon, tooloff, ZClearance, false, PlasmaIHS, rampplunge);
+          }
+
+
+
           $("#savetpgcode").removeClass("disabled");
           $("#exportGcodeMenu").removeClass("disabled");
 
@@ -63,24 +97,9 @@ function makeGcode() {
       var endgcode = document.getElementById('endgcode').value;
       $('#endgcodefinal').val(endgcode);
 
-      openGCodeFromText()
+      // openGCodeFromText()
+      parseGcodeInWebWorker()
 
-      // Button on Ribbom Menu
-      $("#generatetpgcode").html("<i class='fa fa-cubes' aria-hidden='true'></i> Generate G-Code");
-      $("#generatetpgcode").prop('disabled', false);
-      // Button on Window title bar
-      $("#generatetpgcode2").html("<i class='fa fa-cubes' aria-hidden='true'></i> Generate G-Code");
-      $("#generatetpgcode2").prop('disabled', false);
-
-      // $('#gcodesavebtn1').prop('disabled', false);
-      $('#gcodesavebtn2').removeClass('disabled');
-      $('#gcodetrashbtn2').removeClass('disabled');
-      $('#gcodeexporticon').addClass('fg-grayBlue').removeClass('fg-gray');
-      $('#trashicon').addClass('fg-red').removeClass('fg-gray');
-
-      $('#validGcode').html("<i class='fas fa-check fa-fw fg-green'></i> GCODE Ready to be sent ");
-      $('#sendGcodeToMyMachine').prop('disabled', false);
-      enableSim();
     }, 100);
 
   } else {
@@ -100,7 +119,9 @@ function generateGcode(index, toolpathGrp, cutSpeed, plungeSpeed, laserPwr, rapi
   // empty string to store gcode
   var g = "";
   g += "; Operation " + index + ": " + toolpathsInScene[index].userData.camOperation + "\n";
-  g += "; Tool Diameter: " + toolpathsInScene[index].userData.camToolDia + "\n";
+  if (!toolpathsInScene[j].userData.camOperation.indexOf('Pen') == 0) {
+    g += "; Tool Diameter: " + toolpathsInScene[index].userData.camToolDia + "\n";
+  }
 
   // Optimise gcode, send commands only when changed
   var isToolOn = false;
@@ -137,13 +158,19 @@ function generateGcode(index, toolpathGrp, cutSpeed, plungeSpeed, laserPwr, rapi
         // Find longest segment
         // console.log("Vertices before optimise: ", child.geometry.vertices)
         if (child.geometry.vertices.length > 2) {
-          var bestSegment = indexOfMax(child.geometry.vertices)
-          // console.log('longest section' + bestSegment)
-          var clone = child.geometry.vertices.slice(0);
-          clone.splice(-1, 1) // remove the last point (as its the "go back to first point"-point which will just be a duplicate point after rotation)
-          var optimisedVertices = clone.rotateRight(bestSegment)
-          optimisedVertices.push(optimisedVertices[0]) // add back the "go back to first point"-point - from the new first point
-          // console.log("Vertices after optimise: ", optimisedVertices)
+          if (toolpathsInScene[j].userData.camOperation.indexOf('Plasma') != 0) {
+            var bestSegment = indexOfMax(child.geometry.vertices)
+            // console.log('longest section' + bestSegment)
+            var clone = child.geometry.vertices.slice(0);
+            clone.splice(-1, 1) // remove the last point (as its the "go back to first point"-point which will just be a duplicate point after rotation)
+            var optimisedVertices = clone.rotateRight(bestSegment)
+            optimisedVertices.push(optimisedVertices[0]) // add back the "go back to first point"-point - from the new first point
+            // console.log("Vertices after optimise: ", optimisedVertices)
+          } else {
+          var optimisedVertices = child.geometry.vertices.slice(0)
+          }
+
+
         } else {
           var optimisedVertices = child.geometry.vertices.slice(0)
         }
@@ -243,7 +270,11 @@ function generateGcode(index, toolpathGrp, cutSpeed, plungeSpeed, laserPwr, rapi
                   var zdelta = zpos - 0;
                 }
                 // console.log(zdelta)
-                g += "\n" + g0 + " Z" + lastxyz.z + "\n"; // G0 to Z0 then Plunge!
+                if (lastxyz.z) {
+                  g += "\n" + g0 + " Z" + lastxyz.z + "\n"; // G0 to Z0 then Plunge!
+                } else {
+                  g += "\n" + g0 + " Z" + 0 + "\n"; // G0 to Z0 then Plunge!
+                }
                 g += g1 + " F" + plungeSpeed;
                 g += " X" + npt[0].toFixed(4) + " Y" + npt[1].toFixed(4) + " Z" + (zpos - (zdelta / 2)).toFixed(4) + "\n"; // Move to XY position
                 g += g1 + " F" + plungeSpeed;
@@ -270,7 +301,7 @@ function generateGcode(index, toolpathGrp, cutSpeed, plungeSpeed, laserPwr, rapi
               }
               if (toolon) {
                 g += toolon
-                g += '\n'
+                g += '; Tool On\n'
               } else {
                 // Nothing - most of the firmwares use G0 = move, G1 = cut and doesnt need a toolon/tooloff command
               };
@@ -289,7 +320,12 @@ function generateGcode(index, toolpathGrp, cutSpeed, plungeSpeed, laserPwr, rapi
               }
             }
 
-            if (sOnSeperateLine) {
+            if (toolpathsInScene[j].userData.camOperation.indexOf('Pen') == 0) {
+              g += g1 + feedrate;
+              g += " X" + xpos.toFixed(4);
+              g += " Y" + ypos.toFixed(4);
+              g += " Z" + zpos.toFixed(4) + "\n";
+            } else if (sOnSeperateLine) {
               g += s + laserPwr + "\n";
               g += g1 + feedrate;
               g += " X" + xpos.toFixed(4);
@@ -318,7 +354,7 @@ function generateGcode(index, toolpathGrp, cutSpeed, plungeSpeed, laserPwr, rapi
         // tool off
         if (tooloff) {
           g += tooloff
-          g += '\n'
+          g += '; Tool Off\n'
         }
       } // end inflatepate/pocket/entity
       // move to clearance height, at first points XY pos

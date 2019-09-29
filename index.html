@@ -41,7 +41,7 @@
 				<div class="window drop-shadow" style="height: calc(100% - 10px);">
 					<div class="window-caption bg-openbuilds">
 						<span class="icon mif-cog"></span>
-						<span class="title">OpenBuilds CAM - GCODE Generator - Public Beta</span>
+						<span class="title">OpenBuilds CAM - GCODE Generator - <span class="workspaceTitle">Public Beta</span></span>
 					</div>
 					<div class="window-content pt-2" style="overflow-y:hidden; ">
 						<nav data-role="ribbonmenu">
@@ -63,7 +63,7 @@
 												<li class="btn-file"><a href="#"></span><span class="far fa-folder-open fg-amber fa-fw"></span> Open Drawing File (.DXF, .SVG, Image, Gerber, Excellon)</a><input id="file" type="file" accept=".svg,.dxf,.gif,.jpg,.jpeg,.tiff,.png,.bmp,.gbl,.gtl,.gbr,.dri,.txt"
 													  multiple /></li>
 												<li class="divider"></li>
-												<li class="" onclick="storeUndo(true); objectsInScene.length = 0; toolpathsInScene.length = 0; trashGcode(); fillTree();"><a href="#"> <span class="far fa-file fa-fw"></span> New (Empty) Workspace</a></li>
+												<li class="" onclick="storeUndo(true); objectsInScene.length = 0; toolpathsInScene.length = 0; trashGcode(); fillTree(); $('.workspaceTitle').html('');"><a href="#"> <span class="far fa-file fa-fw"></span> New (Empty) Workspace</a></li>
 												<li class="btn-file"><a href="#"><i class="far fa-folder-open fa-fw"></i> Open Workspace (.JSON, .OBC)</a><input type="file" id="workspaceImport" accept=".json,.obc" multiple style="height: 26px;" /></li>
 												<li class="" onclick="exportWorkspace();"><a href="#"><span class="fas fa-download fa-fw"></span> Save Workspace (Export .OBC file)</a></li>
 												<li class="divider"></li>
@@ -73,7 +73,8 @@
 													<ul class="ribbon-dropdown" data-role="dropdown">
 														<li onclick="helloWorld()"><a href="#">CNC Hello World</a></li>
 														<li onclick="helloWorldLaser()"><a href="#">Laser Hello World</a></li>
-
+														<li onclick="helloWorldDragKnife()"><a href="#">Dragknife Hello World</a></li>
+														<li onclick="helloWorldPlasma()"><a href="#">Plasma Hello World</a></li>
 													</ul>
 												</li>
 												<li><a href="#" onclick="Metro.dialog.open('#partslibModal')"><i class="fas fa-sitemap fa-fw"></i> Import from Parts Library</a></li>
@@ -205,7 +206,7 @@
 														<span class="caption">Changelog</span>
 													</button>
 											<br>
-											<button class="ribbon-icon-button" onclick="window.open('https://github.com/openbuilds/cam/fork', '_blank').focus();">
+											<button class="ribbon-icon-button" onclick="window.open('https://github.com/openbuilds/OpenBuilds-CAM/fork', '_blank').focus();">
 														<span class="icon">
 															<span class="fas fa-code-branch"></span>
 														</span>
@@ -312,12 +313,13 @@
 					<div id="renderDocuments" class="window drop-shadow">
 						<div class="window-caption bg-openbuilds">
 							<span class="icon far fa-file-alt"></span>
-							<span class="title">Documents</span>
+							<span class="title">Documents <span class="workspaceTitle"></span></span>
 						</div>
 						<div id="selectoverlay" class="text-center">
 							<button class="button small dark outline bg-white drop-shadow" id="selectAll"><span class="far fa-check-square"></span> All</button>
 							<button class="button small dark outline bg-white drop-shadow" id="selectNone"><span class="far fa-square"></span> None</button>
 							<button class="button small dark outline bg-white drop-shadow" id="selectInv"><span class="fas fa-check"></span> Invert</button>
+							<button class="button small dark outline bg-white drop-shadow" id="selectDel"><span class="fas fa-trash"></span> Delete</button>
 						</div>
 						<div class="window-content p-1" style="overflow-y:scroll;">
 							<!-- Documents Here -->
@@ -637,15 +639,13 @@
 <script type="text/javascript" src="lib/gl-matrix.js"></script>
 <script type="text/javascript" src="lib/tbfleming/web-cam-cpp.js"></script>
 <script type="text/javascript" src="lib/clipperjs/clipper_unminified.js"></script>
-<script type="text/javascript" src="js/advanced-cam-threegcode.js"></script>
 <script type="text/javascript" src="js/advanced-cam-fillpath.js"></script>
 <script type="text/javascript" src="js/advanced-cam-geometryutils.js"></script>
 <script type="text/javascript" src="js/advanced-cam.js"></script>
+<script type="text/javascript" src="js/advanced-cam-gcode.js"></script>
 <script type="text/javascript" src="js/advanced-cam-doctree.js"></script>
 <script type="text/javascript" src="js/advanced-cam-tree.js"></script>
 <script type="text/javascript" src="js/advanced-cam-modal.js"></script>
-<script type="text/javascript" src="js/advanced-cam-preview.js"></script>
-<script type="text/javascript" src="js/advanced-cam-gcode.js"></script>
 <script type="text/javascript" src="js/advanced-cam-viewer-mouse.js"></script>
 <script type="text/javascript" src="js/advanced-cam-viewer-select.js"></script>
 <script type="text/javascript" src="js/advanced-cam-workspace-export.js"></script>
@@ -656,8 +656,6 @@
 <script type="text/javascript" src="js/advanced-cam-drill.js"></script>
 <script type="text/javascript" src="js/advanced-cam-booleans.js"></script>
 
-
-
 <!-- DXF Library -->
 <script type="text/javascript" src="lib/dxf/dxf-parser.js"></script>
 <script type="text/javascript" src="lib/dxf/three-dxf.js"></script>
@@ -667,10 +665,6 @@
 <script type="text/javascript" src="lib/lw.svg-parser/dist/lw.svg-parser.js"></script>
 <script type="text/javascript" src="js/svgparser.js"></script>
 
-<!-- SVG Lasersaur Library -->
-<!-- <script type="text/javascript" src="lib/svgreader/SVGReader.js"></script>
-	<script type="text/javascript" src="lib/svgreader/svg2three.js"></script>
-	<script type="text/javascript" src="lib/svgreader/vec2.js"></script> -->
 <script type="text/javascript" src="js/integration-machine-driver.js"></script>
 
 <!-- Bitmap Tracing -->
@@ -682,6 +676,7 @@
 
 <!-- Gcode Viewer -->
 <script type="text/javascript" src="js/gcodeviewer.js"></script>
+<script type="text/javascript" src="lib/3dview/3dview.js"></script>
 
 <!-- Hello World Job -->
 <script type="text/javascript" src="js/basic-cad-helloworld.js"></script>
@@ -693,6 +688,9 @@
 <!-- User Interface -->
 <script type="text/javascript" src="js/main.js"></script>
 
+<!-- WebWorkers -->
+<script src="workers/toolpath/toolpath.js"></script>
+<script src="workers/toolpath/worker/toolpathworker.js"></script>
 
 <!-- OpenJSCAD -->
 <!-- <script src="lib/openjscad/src/csg.js"></script>

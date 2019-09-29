@@ -144,7 +144,41 @@ function storeRedo() {
 
 
 // Workspace Export Functions
+
 function exportWorkspace() {
+  Metro.dialog.create({
+    title: "Save Workspace (Export .OBC file)",
+    content: `<div class="form-group">
+           <label>Filename:</label>
+           <input type="text" id="workspaceFilename" placeholder="` + 'workspace-' + date.yyyymmdd() + '.obc' + `" value="` + 'workspace-' + date.yyyymmdd() + '.obc' + `"/>
+           <small class="text-muted">What would you like to name the workspace export?</small>
+       </div>
+    `,
+    actions: [{
+        caption: "<span class='fas fa-download fa-fw'></span> Save",
+        cls: "js-dialog-close primary",
+        onclick: function() {
+          saveExportWorkspace($('#workspaceFilename').val());
+        }
+      },
+      {
+        caption: "Cancel",
+        cls: "js-dialog-close",
+        onclick: function() {
+          //
+        }
+      }
+    ]
+  });
+}
+
+function saveExportWorkspace(filename) {
+
+  // no .obc extenstion
+  if (!filename.endsWith('.obc')) {
+    filename = filename += '.obc'
+  }
+
   var obspace = {
     objects: {},
     toolpaths: {}
@@ -160,7 +194,7 @@ function exportWorkspace() {
   var blob = new Blob([data], {
     type: "text/plain"
   });
-  invokeSaveAsDialog(blob, 'workspace-' + date.yyyymmdd() + '.obc');
+  invokeSaveAsDialog(blob, filename);
   // console.log(JSON.stringify(obspace));
 }
 
@@ -189,6 +223,7 @@ function loadWorkspace(f) {
         parseLoadWorkspace(this.result)
         console.log(this.result)
       };
+      $('.workspaceTitle').html(' - ' + f.name)
     } else {
       // Not usable
     }
@@ -228,17 +263,22 @@ function parseLoadWorkspace(json, resetView) {
     var object = loader.parse(newWorkspace.objects[key]);
     objectsInScene.push(object)
   }
-  fillTree();
+  // fillTree();
   $('#documentstree').show();
   $('#documentactivity').hide();
   for (var key in newWorkspace.toolpaths) {
     var object = loader.parse(newWorkspace.toolpaths[key]);
     toolpathsInScene.push(object)
   }
-
-  for (i = 0; i < toolpathsInScene.length; i++) {
-    toolpathPreview(i);
+  fillTree();
+  if (resetView) {
+    resetView();
   }
+  setTimeout(function() {
+    for (i = 0; i < toolpathsInScene.length; i++) {
+      toolpathPreview(i);
+    }
+  }, 200);
   if (resetView) {
     resetView();
   }

@@ -62,9 +62,46 @@ $(document).ready(function() {
   //   getChangelog();
   // }
 
-  loadLastClosedOnPageload();
-
   getForksCount();
+
+
+  // lets see if there's any Workspaces on CONTROL
+  $.get("https://mymachine.openbuilds.com:3001/workspace").done(function(data) {
+    if (isJson(data)) {
+      hasWorkspace = true;
+      Metro.dialog.create({
+        width: 500,
+        title: "Import workspace.",
+        content: "<div>Would you like to Import the workspace you opened?</div>",
+        actions: [{
+            caption: "<i class=\"far fa-fw fa-save\"></i>Import",
+            cls: "js-dialog-close success",
+            onclick: function() {
+              parseLoadWorkspace(data)
+            }
+          },
+          {
+            caption: "<i class=\"far fa-fw fa-file\"></i>Cancel",
+            cls: "js-dialog-close",
+            onclick: function() {
+              loadLastClosedOnPageload()
+            }
+          }
+        ]
+      });
+    } else {
+      loadLastClosedOnPageload()
+    }
+  }).fail(function() {
+    loadLastClosedOnPageload()
+  });
+
+
+
+
+
+
+
 
 }); // End of document.ready
 
@@ -234,7 +271,7 @@ function loadFile(f) {
       }
       r.readAsDataURL(f);
 
-    } else if (f.name.match(/.gtl$/i) || f.name.match(/.gbl$/i) || f.name.match(/.gbr$/i)) {
+    } else if (f.name.match(/.gtl$/i) || f.name.match(/.gbl$/i) || f.name.match(/.gbr$/i) || f.name.match(/.GTL$/i) || f.name.match(/.GBL$/i) || f.name.match(/.GBR$/i)) {
       // console.log(f.name + " is a DXF file");
       // console.log('Reader: ', r)
       r.readAsText(f);
@@ -244,7 +281,7 @@ function loadFile(f) {
         printLog('Gerber Opened');
         resetView();
       };
-    } else if (f.name.match(/.txt$/i)) { // Excellon Drill File
+    } else if (f.name.match(/.txt$/i) || f.name.match(/.TXT$/i)) { // Excellon Drill File
       r.readAsText(f);
       r.onload = function(e) {
         var gerbdata = r.result;
@@ -276,12 +313,42 @@ function loadFile(f) {
 }
 
 function saveFile() {
+  Metro.dialog.create({
+    title: "Save GCODE",
+    content: `<div class="form-group">
+           <label>Filename:</label>
+           <input type="text" id="gcodeFilename" placeholder="` + 'file-' + date.yyyymmdd() + '.gcode' + `" value="` + 'file-' + date.yyyymmdd() + '.gcode' + `"/>
+           <small class="text-muted">What would you like to name the gcode export?</small>
+       </div>
+    `,
+    actions: [{
+        caption: "<span class='fas fa-download fa-fw'></span> Save",
+        cls: "js-dialog-close primary",
+        onclick: function() {
+          saveFileGcode($('#gcodeFilename').val());
+        }
+      },
+      {
+        caption: "Cancel",
+        cls: "js-dialog-close",
+        onclick: function() {
+          //
+        }
+      }
+    ]
+  });
+
+}
+
+function saveFileGcode(filename) {
+  if (!filename.endsWith('.gcode')) {
+    filename = filename += '.obc'
+  }
   var textToWrite = prepgcodefile();
   var blob = new Blob([textToWrite], {
     type: "text/plain"
   });
-  invokeSaveAsDialog(blob, 'file.gcode');
-
+  invokeSaveAsDialog(blob, filename);
 }
 
 /**
@@ -348,7 +415,7 @@ function printLog(text, color, logclass) {
 function getForksCount() {
   $("#forksCount").empty()
   var template2 = ``
-  $.get("https://api.github.com/repos/OpenBuilds/cam/forks?client_id=fbbb80debc1197222169&client_secret=7dc6e463422e933448f9a3a4150c8d2bbdd0f87c", function(data) {
+  $.get("https://api.github.com/repos/OpenBuilds/OpenBuilds-CAM/forks?client_id=fbbb80debc1197222169&client_secret=7dc6e463422e933448f9a3a4150c8d2bbdd0f87c", function(data) {
     // console.log(data)
     $("#forksCount").html(" " + data.length + " ");
   });
@@ -358,7 +425,7 @@ function getChangelog() {
 
   $("#changelog").empty()
   var template2 = `<ul>`
-  $.get("https://raw.githubusercontent.com/openbuilds/cam/master/CHANGELOG.txt?date=" + new Date().getTime(), function(data) {
+  $.get("https://raw.githubusercontent.com/openbuilds/OpenBuilds-CAM/master/CHANGELOG.txt?date=" + new Date().getTime(), function(data) {
     var lines = data.split('\n');
 
     for (var line = 0; line < lines.length - 1; line++) {
@@ -371,4 +438,22 @@ function getChangelog() {
   if (!Metro.dialog.isOpen('#settingsmodal')) {
     Metro.dialog.open('#splashModal')
   }
+}
+
+function isJson(item) {
+  item = typeof item !== "string" ?
+    JSON.stringify(item) :
+    item;
+
+  try {
+    item = JSON.parse(item);
+  } catch (e) {
+    return false;
+  }
+
+  if (typeof item === "object" && item !== null) {
+    return true;
+  }
+
+  return false;
 }
